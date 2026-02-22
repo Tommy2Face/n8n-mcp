@@ -1,75 +1,50 @@
-# .dockerignore
-node_modules
-npm-debug.log
+# Git
 .git
 .gitignore
-.env
-.env.local
-# Exclude all .env.* files except .env.example
-.env.*
-!.env.example
-# Keep nodes.db but exclude other database files
-data/*.db
-data/*.db-*
-!data/nodes.db
-dist
-.DS_Store
-*.log
-coverage
-.nyc_output
+.gitattributes
+
+# Node.js
+node_modules
+npm-debug.log
+yarn-error.log
+.yarn/cache
+
+# TypeScript
+*.tsbuildinfo
+.tsc-out
+
+# IDE
 .vscode
 .idea
 *.swp
 *.swo
 *~
-docker-compose.override.yml
-.github
-docs
-tests
-jest.config.js
-.eslintrc.js
-*.md
-!README.md
-!LICENSE
-# Exclude n8n-docs if present
-../n8n-docs
-n8n-docs
-# Exclude extracted nodes
-extracted-nodes/
-# Exclude temp directory
-temp/
-tmp/
-# Exclude any backup or temporary files
-*.bak
-*.tmp
-*.temp
-# Exclude build artifacts
-build/
-out/
-# Exclude local development files
-.eslintcache
-.stylelintcache
-# Exclude any large test data
-test-data/
-# Exclude Docker files during build
+.DS_Store
+
+# Docker
 Dockerfile*
-docker-compose*.yml
+docker-compose*
 .dockerignore
-# Exclude development scripts
-scripts/test-*.sh
-scripts/deploy-*.sh
-# Exclude TypeScript cache
-.tscache
-tsconfig.tsbuildinfo
-# Exclude package manager caches
-.npm
-.pnpm-store
-.yarn
-# Exclude git hooks
-.husky
-# Exclude renovate config
-renovate.json
-# Exclude any local notes or TODO files
-TODO*
-NOTES*
-*.todo
+
+# CI/CD
+.github
+.gitlab-ci.yml
+
+# Testing
+jest.config.js
+tests/
+coverage/
+.coverage
+
+# Build artifacts
+dist/
+build/
+
+# Environment
+.env.local
+.env.*.local
+
+# Misc
+*.md
+LICENSE
+CHANGELOG.md

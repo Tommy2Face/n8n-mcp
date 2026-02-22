@@ -1,77 +1,109 @@
 # syntax=docker/dockerfile:1.7
-# Ultra-optimized Dockerfile - minimal runtime dependencies (no n8n packages)
+# Optimized Dockerfile for n8n-mcp Node.js TypeScript server
 
-# Stage 1: Builder (TypeScript compilation only)
+# Stage 1: Builder - TypeScript compilation with all dependencies
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Copy tsconfig for TypeScript compilation
+# Install build dependencies
+RUN apk add --no-cache python3 make g++ && \
+    npm config set fetch-timeout=60000 && \
+    npm config set fetch-retries=5
+
+# Copy package files
+COPY package*.json ./
 COPY tsconfig.json ./
 
-# Create minimal package.json and install ONLY build dependencies
+# Install all dependencies (including devDependencies for TypeScript)
 RUN --mount=type=cache,target=/root/.npm \
-    echo '{}' > package.json && \
-    npm install --no-save typescript@^5.8.3 @types/node@^22.15.30 @types/express@^5.0.3 \
-        @modelcontextprotocol/sdk@^1.12.1 dotenv@^16.5.0 express@^5.1.0 axios@^1.10.0 \
-        n8n-workflow@^1.96.0 uuid@^11.0.5 @types/uuid@^10.0.0
+    npm ci --prefer-offline --no-audit
 
-# Copy source and build
-COPY src ./src
-# Note: src/n8n contains TypeScript types needed for compilation
-# These will be compiled but not included in runtime
-RUN npx tsc
+# Copy source code
+COPY src/ src/
 
-# Stage 2: Runtime (minimal dependencies)
-FROM node:20-alpine AS runtime
+# Build TypeScript to JavaScript
+RUN npm run build
+
+# Stage 2: Production - Runtime only
+FROM node:20-alpine AS production
 WORKDIR /app
 
-# Install only essential runtime tools
-RUN apk add --no-cache curl && \
-    rm -rf /var/cache/apk/*
-
-# Copy runtime-only package.json
-COPY package.runtime.json package.json
-
-# Install runtime dependencies with cache mount
-RUN --mount=type=cache,target=/root/.npm \
-    npm install --production --no-audit --no-fund
-
-# Copy built application
-COPY --from=builder /app/dist ./dist
-
-# Copy pre-built database and required files
-COPY data/nodes.db ./data/
-COPY src/database/schema-optimized.sql ./src/database/
-COPY .env.example ./
-
-# Copy entrypoint script
-COPY docker/docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-# Add container labels
-LABEL org.opencontainers.image.source="https://github.com/czlonkowski/n8n-mcp"
-LABEL org.opencontainers.image.description="n8n MCP Server - Runtime Only"
-LABEL org.opencontainers.image.licenses="MIT"
-LABEL org.opencontainers.image.title="n8n-mcp"
+# Install runtime dependencies
+RUN apk add --no-cache curl sqlite
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001 && \
-    chown -R nodejs:nodejs /app
+    adduser -S nodejs -u 1001
 
-# Switch to non-root user
+# Copy package files for production dependencies only
+COPY package*.json ./
+
+# Install only production dependencies
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --production --prefer-offline --no-audit && \
+    npm cache clean --force
+
+# Copy compiled JavaScript from builder
+COPY --from=builder /app/dist ./dist
+
+# Copy config and environment files
+COPY .env.example ./
+COPY --chown=nodejs:nodejs data/ data/
+
 USER nodejs
 
-# Set Docker environment flag
-ENV IS_DOCKER=true
+EXPOSE 3000 8080
 
-# Expose HTTP port
-EXPOSE 3000
-
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://127.0.0.1:3000/health || exit 1
+    CMD curl -f http://127.0.0.1:3000/health || curl -f http://127.0.0.1:8080/health || exit 1
 
-# Optimized entrypoint
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+ENV MCP_MODE=http \
+    USE_FIXED_HTTP=true \
+    NODE_ENV=production
+
 CMD ["node", "dist/mcp/index.js"]
+
+# Stage 3: Development - with nodemon for hot-reload
+FROM node:20-alpine AS development
+WORKDIR /app
+
+# Install build dependencies and dev tools
+RUN apk add --no-cache python3 make g++ curl sqlite && \
+    npm config set fetch-timeout=60000 && \
+    npm config set fetch-retries=5
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Install all dependencies (including devDependencies)
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --prefer-offline --no-audit
+
+# Copy entire source
+COPY src/ src/
+COPY .env.example ./
+COPY data/ data/
+
+# Build once for initial state
+RUN npm run build
+
+# Set working directory ownership
+RUN chown -R nodejs:nodejs /app
+
+USER nodejs
+
+EXPOSE 3000 8080
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://127.0.0.1:3000/health || curl -f http://127.0.0.1:8080/health || exit 1
+
+ENV MCP_MODE=http \
+    USE_FIXED_HTTP=true \
+    NODE_ENV=development
+
+CMD ["npm", "run", "dev:http"]
