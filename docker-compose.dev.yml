@@ -1,0 +1,34 @@
+version: '3.9'
+
+services:
+  n8n-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: n8n-mcp-dev
+    ports:
+      - "3000:3000"
+      - "8080:8080"
+    environment:
+      MCP_MODE: http
+      USE_FIXED_HTTP: "true"
+      NODE_ENV: development
+      AUTH_TOKEN: ${AUTH_TOKEN:-changeme}
+      N8N_API_URL: ${N8N_API_URL}
+      N8N_API_KEY: ${N8N_API_KEY}
+      PORT: "8080"
+      MCP_LOG_LEVEL: debug
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/dist
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
