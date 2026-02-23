@@ -4,10 +4,10 @@
  */
 export class SimpleCache {
   private cache = new Map<string, { data: any; expires: number }>();
+  private cleanupInterval: ReturnType<typeof setInterval>;
   
   constructor() {
-    // Clean up expired entries every minute
-    setInterval(() => {
+    this.cleanupInterval = setInterval(() => {
       const now = Date.now();
       for (const [key, item] of this.cache.entries()) {
         if (item.expires < now) this.cache.delete(key);
@@ -32,6 +32,11 @@ export class SimpleCache {
   }
   
   clear(): void {
+    this.cache.clear();
+  }
+  
+  destroy(): void {
+    clearInterval(this.cleanupInterval);
     this.cache.clear();
   }
 }

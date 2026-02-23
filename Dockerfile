@@ -10,7 +10,7 @@ RUN apk add --no-cache python3 make g++ && \
     npm config set fetch-timeout=60000 && \
     npm config set fetch-retries=5
 
-# Copy package files
+# Copy package files first for layer caching
 COPY package*.json ./
 COPY tsconfig.json ./
 
@@ -28,10 +28,15 @@ RUN npm run build
 FROM node:20-alpine AS production
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apk add --no-cache curl sqlite
+LABEL org.opencontainers.image.title="n8n-mcp" \
+      org.opencontainers.image.description="N8N MCP Server (HTTP mode)" \
+      org.opencontainers.image.version="1.0" \
+      org.opencontainers.image.vendor="Production"
 
-# Create non-root user
+# Install runtime dependencies
+RUN apk add --no-cache curl sqlite dumb-init
+
+# Create non-root user first
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
@@ -61,6 +66,7 @@ ENV MCP_MODE=http \
     USE_FIXED_HTTP=true \
     NODE_ENV=production
 
+ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/mcp/index.js"]
 
 # Stage 3: Development - with nodemon for hot-reload

@@ -295,10 +295,10 @@ export class SingleSessionHTTPServer {
   async shutdown(): Promise<void> {
     logger.info('Shutting down Single-Session HTTP server...');
     
-    // Clean up session
     if (this.session) {
       try {
         await this.session.transport.close();
+        this.session.server.destroy();
         logger.info('Session closed');
       } catch (error) {
         logger.warn('Error closing session:', error);

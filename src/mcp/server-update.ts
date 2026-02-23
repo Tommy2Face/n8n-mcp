@@ -1857,6 +1857,10 @@ Full documentation is being prepared. For now, use get_node_essentials for confi
     }
   }
 
+  destroy(): void {
+    this.cache.destroy();
+  }
+
   async run(): Promise<void> {
     // Ensure database is initialized before starting server
     await this.ensureInitialized();
