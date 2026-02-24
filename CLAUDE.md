@@ -47,7 +47,7 @@ docker compose down           # Stop
 
 - **stdio** (default) → `N8NDocumentationMCPServer` via `StdioServerTransport`. Used by Claude Desktop/Code. **Critical: never write to stdout/stderr in this mode** — it corrupts the MCP protocol. All logging is conditional.
 - **http** with `USE_FIXED_HTTP=true` → `src/http-server-fixed.ts`. Express server with manual JSON-RPC, Bearer token auth, CORS. Endpoints: `POST /mcp`, `GET /health`, `GET /version`.
-- **http** legacy → `src/http-server-single-session.ts`. Uses SDK's `StreamableHTTPServerTransport`. Less stable.
+- **http** single-session → `src/http-server-single-session.ts`. Uses SDK's `StreamableHTTPServerTransport` with session management.
 
 ### Database Adapter
 
