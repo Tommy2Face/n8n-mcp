@@ -74,12 +74,27 @@ database/node-repository.ts  → Persists to SQLite (schema.sql)
 - `src/mcp/tools-update.ts` → `n8nDocumentationToolsFinal` (17 doc + 5 validation tools)
 - `src/mcp/tools-n8n-manager.ts` → `n8nManagementTools` (14 tools, conditional on `N8N_API_URL` + `N8N_API_KEY`)
 
-**Dispatch**: `N8NDocumentationMCPServer.executeTool()` in `src/mcp/server-update.ts` routes via switch statement (~30 cases).
+**Dispatch**: Two-tier routing in `N8NDocumentationMCPServer.executeTool()` (`src/mcp/server-update.ts`):
+1. **Handler registry** (`src/mcp/handlers/index.ts`) — O(1) lookup in `toolHandlers` Record for 22 doc/validation/template/workflow tools
+2. **Switch fallback** — 14 n8n management tools + diff handler, dispatched to `handlers-n8n-manager.ts` and `handlers-workflow-diff.ts`
 
-**Handlers** split across files:
-- `server-update.ts` — inline methods for documentation/validation tools
-- `handlers-n8n-manager.ts` — n8n API workflow management
+**Handler modules** in `src/mcp/handlers/`:
+- `index.ts` — barrel export of `toolHandlers` Record mapping tool names → handler functions
+- `types.ts` — `HandlerContext` (db, repository, templateService, cache), `ToolHandler`, `NodeRow`
+- `documentation-handlers.ts` — 7 tools (listNodes, getNodeInfo, searchNodes, etc.)
+- `validation-handlers.ts` — 7 tools (getNodeEssentials, validateNodeOperation, etc.)
+- `template-handlers.ts` — 4 tools (listNodeTemplates, getTemplate, searchTemplates, etc.)
+- `workflow-validation-handlers.ts` — 3 tools (validateWorkflow, connections, expressions)
+- `guide-handler.ts` — 1 tool (start_here_workflow_guide)
+- `node-lookup.ts` — shared node lookup helper
+
+**Standalone handlers** (n8n API, not in registry):
+- `handlers-n8n-manager.ts` — 15 functions for workflow/execution management via n8n API
 - `handlers-workflow-diff.ts` — diff-based partial workflow updates
+
+**Shared types/config**:
+- `src/types/n8n.ts` — shared n8n type definitions
+- `src/config/constants.ts` — server defaults, timeouts, security header values
 
 All responses: `{content: [{type: 'text', text: JSON.stringify(result)}]}`.
 
