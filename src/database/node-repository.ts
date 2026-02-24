@@ -1,9 +1,10 @@
 import { DatabaseAdapter } from './database-adapter';
 import { ParsedNode } from '../parsers/node-parser';
+import { NodeRecord, AIToolRecord } from '../types/n8n';
 
 export class NodeRepository {
   constructor(private db: DatabaseAdapter) {}
-  
+
   /**
    * Save node with proper JSON serialization
    */
@@ -39,52 +40,52 @@ export class NodeRepository {
   /**
    * Get node with proper JSON deserialization
    */
-  getNode(nodeType: string): any {
+  getNode(nodeType: string): NodeRecord | null {
     const row = this.db.prepare(`
       SELECT * FROM nodes WHERE node_type = ?
-    `).get(nodeType) as any;
-    
+    `).get(nodeType) as Record<string, unknown> | undefined;
+
     if (!row) return null;
-    
+
     return {
-      nodeType: row.node_type,
-      displayName: row.display_name,
-      description: row.description,
-      category: row.category,
-      developmentStyle: row.development_style,
-      package: row.package_name,
+      nodeType: row.node_type as string,
+      displayName: row.display_name as string,
+      description: row.description as string,
+      category: row.category as string,
+      developmentStyle: row.development_style as string,
+      package: row.package_name as string,
       isAITool: !!row.is_ai_tool,
       isTrigger: !!row.is_trigger,
       isWebhook: !!row.is_webhook,
       isVersioned: !!row.is_versioned,
-      version: row.version,
-      properties: this.safeJsonParse(row.properties_schema, []),
-      operations: this.safeJsonParse(row.operations, []),
-      credentials: this.safeJsonParse(row.credentials_required, []),
+      version: row.version as string,
+      properties: this.safeJsonParse(row.properties_schema as string, []),
+      operations: this.safeJsonParse(row.operations as string, []),
+      credentials: this.safeJsonParse(row.credentials_required as string, []),
       hasDocumentation: !!row.documentation
     };
   }
-  
+
   /**
    * Get AI tools with proper filtering
    */
-  getAITools(): any[] {
+  getAITools(): AIToolRecord[] {
     const rows = this.db.prepare(`
       SELECT node_type, display_name, description, package_name
-      FROM nodes 
+      FROM nodes
       WHERE is_ai_tool = 1
       ORDER BY display_name
-    `).all() as any[];
-    
+    `).all() as Array<Record<string, unknown>>;
+
     return rows.map(row => ({
-      nodeType: row.node_type,
-      displayName: row.display_name,
-      description: row.description,
-      package: row.package_name
+      nodeType: row.node_type as string,
+      displayName: row.display_name as string,
+      description: row.description as string,
+      package: row.package_name as string
     }));
   }
-  
-  private safeJsonParse(json: string, defaultValue: any): any {
+
+  private safeJsonParse<T>(json: string, defaultValue: T): T {
     try {
       return JSON.parse(json);
     } catch {

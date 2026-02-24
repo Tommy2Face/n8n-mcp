@@ -40,13 +40,6 @@ const workflowDiffSchema = z.object({
 
 export async function handleUpdatePartialWorkflow(args: unknown): Promise<McpToolResponse> {
   try {
-    // Debug: Log what Claude Desktop sends
-    logger.info('[DEBUG] Full args from Claude Desktop:', JSON.stringify(args, null, 2));
-    logger.info('[DEBUG] Args type:', typeof args);
-    if (args && typeof args === 'object') {
-      logger.info('[DEBUG] Args keys:', Object.keys(args as any));
-    }
-    
     // Validate input
     const input = workflowDiffSchema.parse(args);
     

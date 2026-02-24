@@ -1,4 +1,5 @@
 import { PropertyExtractor } from './property-extractor';
+import { N8nProperty, N8nOperation, N8nCredential, N8nNodeDescription } from '../types/n8n';
 
 export interface ParsedNode {
   style: 'declarative' | 'programmatic';
@@ -6,12 +7,12 @@ export interface ParsedNode {
   displayName: string;
   description?: string;
   category?: string;
-  properties: any[];
-  credentials: any[];
+  properties: N8nProperty[];
+  credentials: N8nCredential[];
   isAITool: boolean;
   isTrigger: boolean;
   isWebhook: boolean;
-  operations: any[];
+  operations: N8nOperation[];
   version?: string;
   isVersioned: boolean;
   packageName: string;
@@ -21,6 +22,7 @@ export interface ParsedNode {
 export class NodeParser {
   private propertyExtractor = new PropertyExtractor();
   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- n8n node classes are dynamically loaded
   parse(nodeClass: any, packageName: string): ParsedNode {
     // Get base description (handles versioned nodes)
     const description = this.getNodeDescription(nodeClass);
@@ -43,9 +45,10 @@ export class NodeParser {
     };
   }
   
-  private getNodeDescription(nodeClass: any): any {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private getNodeDescription(nodeClass: any): N8nNodeDescription {
     // Try to get description from the class first
-    let description: any;
+    let description: N8nNodeDescription;
     
     // Check if it's a versioned node (has baseDescription and nodeVersions)
     if (typeof nodeClass === 'function' && nodeClass.prototype && 
@@ -77,12 +80,13 @@ export class NodeParser {
     return description;
   }
   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private detectStyle(nodeClass: any): 'declarative' | 'programmatic' {
     const desc = this.getNodeDescription(nodeClass);
     return desc.routing ? 'declarative' : 'programmatic';
   }
   
-  private extractNodeType(description: any, packageName: string): string {
+  private extractNodeType(description: N8nNodeDescription, packageName: string): string {
     // Ensure we have the full node type including package prefix
     const name = description.name;
     
@@ -99,26 +103,27 @@ export class NodeParser {
     return `${packagePrefix}.${name}`;
   }
   
-  private extractCategory(description: any): string {
+  private extractCategory(description: N8nNodeDescription): string {
     return description.group?.[0] || 
            description.categories?.[0] || 
            description.category || 
            'misc';
   }
   
-  private detectTrigger(description: any): boolean {
+  private detectTrigger(description: N8nNodeDescription): boolean {
     return description.polling === true || 
            description.trigger === true ||
            description.eventTrigger === true ||
            description.name?.toLowerCase().includes('trigger');
   }
   
-  private detectWebhook(description: any): boolean {
-    return (description.webhooks?.length > 0) ||
+  private detectWebhook(description: N8nNodeDescription): boolean {
+    return ((description.webhooks?.length ?? 0) > 0) ||
            description.webhook === true ||
            description.name?.toLowerCase().includes('webhook');
   }
   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private extractVersion(nodeClass: any): string {
     // Handle VersionedNodeType with defaultVersion
     if (nodeClass.baseDescription?.defaultVersion) {
@@ -146,7 +151,7 @@ export class NodeParser {
         const version = instance.description.version;
         if (Array.isArray(version)) {
           // Find the maximum version from the array
-          const maxVersion = Math.max(...version.map((v: any) => parseFloat(v.toString())));
+          const maxVersion = Math.max(...version.map((v: number) => parseFloat(v.toString())));
           return maxVersion.toString();
         } else if (typeof version === 'number' || typeof version === 'string') {
           return version.toString();
@@ -161,7 +166,7 @@ export class NodeParser {
     const description = this.getNodeDescription(nodeClass);
     if (description?.version) {
       if (Array.isArray(description.version)) {
-        const maxVersion = Math.max(...description.version.map((v: any) => parseFloat(v.toString())));
+        const maxVersion = Math.max(...description.version.map((v: number | string) => parseFloat(v.toString())));
         return maxVersion.toString();
       } else if (typeof description.version === 'number' || typeof description.version === 'string') {
         return description.version.toString();
@@ -172,6 +177,7 @@ export class NodeParser {
     return '1';
   }
   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private detectVersioned(nodeClass: any): boolean {
     // Check class-level nodeVersions
     if (nodeClass.nodeVersions || nodeClass.baseDescription?.defaultVersion) {

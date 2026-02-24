@@ -217,8 +217,8 @@ async function rebuildOptimized() {
   console.log(`   With Source Code: ${stats.withSource}`);
   
   // Database size check
-  const dbStats = db.prepare('SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()').get();
-  console.log(`\n💾 Database size: ${(dbStats.size / 1024 / 1024).toFixed(2)} MB`);
+  const dbStats = db.prepare('SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()').get() as { size: number } | undefined;
+  console.log(`\n💾 Database size: ${((dbStats?.size ?? 0) / 1024 / 1024).toFixed(2)} MB`);
   
   console.log('\n✨ Optimized rebuild complete!');
   

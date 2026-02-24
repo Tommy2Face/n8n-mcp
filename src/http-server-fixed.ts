@@ -8,6 +8,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { n8nDocumentationToolsFinal } from './mcp/tools-update';
 import { N8NDocumentationMCPServer } from './mcp/server-update';
 import { logger } from './utils/logger';
+import { APP_VERSION, SERVER_NAME, DEFAULT_PORT, DEFAULT_HOST, HSTS_MAX_AGE, CORS_MAX_AGE, SHUTDOWN_TIMEOUT_MS, PROTOCOL_VERSION } from './config/constants';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -51,7 +52,7 @@ async function shutdown() {
     setTimeout(() => {
       logger.error('Forced shutdown after timeout');
       process.exit(1);
-    }, 10000);
+    }, SHUTDOWN_TIMEOUT_MS);
   } else {
     process.exit(0);
   }
@@ -69,7 +70,7 @@ export async function startFixedHTTPServer() {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-XSS-Protection', '1; mode=block');
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('Strict-Transport-Security', `max-age=${HSTS_MAX_AGE}; includeSubDomains`);
     next();
   });
   
@@ -79,7 +80,7 @@ export async function startFixedHTTPServer() {
     res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
-    res.setHeader('Access-Control-Max-Age', '86400');
+    res.setHeader('Access-Control-Max-Age', CORS_MAX_AGE);
     
     if (req.method === 'OPTIONS') {
       res.sendStatus(204);
@@ -107,7 +108,7 @@ export async function startFixedHTTPServer() {
     res.json({ 
       status: 'ok', 
       mode: 'http-fixed',
-      version: '2.4.1',
+      version: APP_VERSION,
       uptime: Math.floor(process.uptime()),
       memory: {
         used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
@@ -120,8 +121,8 @@ export async function startFixedHTTPServer() {
 
   // Version endpoint
   app.get('/version', (req, res) => {
-    res.json({ 
-      version: '2.4.1',
+    res.json({
+      version: APP_VERSION,
       buildTime: new Date().toISOString(),
       tools: n8nDocumentationToolsFinal.map(t => t.name),
       commit: process.env.GIT_COMMIT || 'unknown'
@@ -193,8 +194,8 @@ export async function startFixedHTTPServer() {
                     resources: {}
                   },
                   serverInfo: {
-                    name: 'n8n-documentation-mcp',
-                    version: '2.4.1'
+                    name: SERVER_NAME,
+                    version: APP_VERSION
                   }
                 },
                 id: jsonRpcRequest.id
@@ -319,8 +320,8 @@ export async function startFixedHTTPServer() {
     }
   });
   
-  const port = parseInt(process.env.PORT || '3000');
-  const host = process.env.HOST || '0.0.0.0';
+  const port = parseInt(process.env.PORT || String(DEFAULT_PORT));
+  const host = process.env.HOST || DEFAULT_HOST;
   
   expressServer = app.listen(port, host, () => {
     logger.info(`n8n MCP Fixed HTTP Server started`, { port, host });

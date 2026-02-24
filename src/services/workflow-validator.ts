@@ -359,7 +359,7 @@ export class WorkflowValidator {
             });
           }
           // Check if typeVersion is outdated (less than latest)
-          else if (nodeInfo.version && node.typeVersion < nodeInfo.version) {
+          else if (nodeInfo.version && node.typeVersion < Number(nodeInfo.version)) {
             result.warnings.push({
               type: 'warning',
               nodeId: node.id,
@@ -368,7 +368,7 @@ export class WorkflowValidator {
             });
           }
           // Check if typeVersion exceeds maximum supported
-          else if (nodeInfo.version && node.typeVersion > nodeInfo.version) {
+          else if (nodeInfo.version && node.typeVersion > Number(nodeInfo.version)) {
             result.errors.push({
               type: 'error',
               nodeId: node.id,

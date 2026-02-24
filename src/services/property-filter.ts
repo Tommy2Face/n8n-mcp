@@ -1,20 +1,22 @@
 /**
  * PropertyFilter Service
- * 
+ *
  * Intelligently filters node properties to return only essential and commonly-used ones.
  * Reduces property count from 200+ to 10-20 for better AI agent usability.
  */
+
+import { N8nProperty } from '../types/n8n';
 
 export interface SimplifiedProperty {
   name: string;
   displayName: string;
   type: string;
   description: string;
-  default?: any;
+  default?: unknown;
   options?: Array<{ value: string; label: string }>;
   required?: boolean;
   placeholder?: string;
-  showWhen?: Record<string, any>;
+  showWhen?: Record<string, unknown[]>;
   usageHint?: string;
 }
 
@@ -179,8 +181,8 @@ export class PropertyFilter {
   /**
    * Deduplicate properties based on name and display conditions
    */
-  static deduplicateProperties(properties: any[]): any[] {
-    const seen = new Map<string, any>();
+  static deduplicateProperties(properties: N8nProperty[]): N8nProperty[] {
+    const seen = new Map<string, N8nProperty>();
     
     return properties.filter(prop => {
       // Create unique key from name + conditions
@@ -199,7 +201,7 @@ export class PropertyFilter {
   /**
    * Get essential properties for a node type
    */
-  static getEssentials(allProperties: any[], nodeType: string): FilteredProperties {
+  static getEssentials(allProperties: N8nProperty[], nodeType: string): FilteredProperties {
     // Deduplicate first
     const uniqueProperties = this.deduplicateProperties(allProperties);
     const config = this.ESSENTIAL_PROPERTIES[nodeType];
@@ -224,8 +226,8 @@ export class PropertyFilter {
    * Extract and simplify specified properties
    */
   private static extractProperties(
-    allProperties: any[], 
-    propertyNames: string[], 
+    allProperties: N8nProperty[],
+    propertyNames: string[],
     markAsRequired: boolean
   ): SimplifiedProperty[] {
     const extracted: SimplifiedProperty[] = [];
@@ -247,7 +249,7 @@ export class PropertyFilter {
   /**
    * Find a property by name, including in nested collections
    */
-  private static findPropertyByName(properties: any[], name: string): any | undefined {
+  private static findPropertyByName(properties: N8nProperty[], name: string): N8nProperty | undefined {
     for (const prop of properties) {
       if (prop.name === name) {
         return prop;
@@ -255,13 +257,13 @@ export class PropertyFilter {
       
       // Check in nested collections
       if (prop.type === 'collection' && prop.options) {
-        const found = this.findPropertyByName(prop.options, name);
+        const found = this.findPropertyByName(prop.options as N8nProperty[], name);
         if (found) return found;
       }
-      
+
       // Check in fixed collections
       if (prop.type === 'fixedCollection' && prop.options) {
-        for (const option of prop.options) {
+        for (const option of prop.options as Array<{ values?: N8nProperty[] }>) {
           if (option.values) {
             const found = this.findPropertyByName(option.values, name);
             if (found) return found;
@@ -276,7 +278,7 @@ export class PropertyFilter {
   /**
    * Simplify a property for AI consumption
    */
-  private static simplifyProperty(prop: any): SimplifiedProperty {
+  private static simplifyProperty(prop: N8nProperty): SimplifiedProperty {
     const simplified: SimplifiedProperty = {
       name: prop.name,
       displayName: prop.displayName || prop.name,
@@ -300,7 +302,8 @@ export class PropertyFilter {
     
     // Simplify options for select fields
     if (prop.options && Array.isArray(prop.options)) {
-      simplified.options = prop.options.map((opt: any) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      simplified.options = (prop.options as any[]).map((opt) => {
         if (typeof opt === 'string') {
           return { value: opt, label: opt };
         }
@@ -328,7 +331,7 @@ export class PropertyFilter {
   /**
    * Generate helpful usage hints for properties
    */
-  private static generateUsageHint(prop: any): string | undefined {
+  private static generateUsageHint(prop: N8nProperty): string | undefined {
     // URL properties
     if (prop.name.toLowerCase().includes('url') || prop.name === 'endpoint') {
       return 'Enter the full URL including https://';
@@ -360,7 +363,7 @@ export class PropertyFilter {
   /**
    * Extract description from various possible fields
    */
-  private static extractDescription(prop: any): string {
+  private static extractDescription(prop: N8nProperty): string {
     // Try multiple fields where description might be stored
     const description = prop.description || 
                        prop.hint || 
@@ -379,7 +382,7 @@ export class PropertyFilter {
   /**
    * Generate a description based on property characteristics
    */
-  private static generateDescription(prop: any): string {
+  private static generateDescription(prop: N8nProperty): string {
     const name = prop.name.toLowerCase();
     const type = prop.type;
     
@@ -442,7 +445,7 @@ export class PropertyFilter {
   /**
    * Infer essentials for nodes without curated lists
    */
-  private static inferEssentials(properties: any[]): FilteredProperties {
+  private static inferEssentials(properties: N8nProperty[]): FilteredProperties {
     // Extract explicitly required properties
     const required = properties
       .filter(p => p.required === true)
@@ -481,12 +484,12 @@ export class PropertyFilter {
    * Search for properties matching a query
    */
   static searchProperties(
-    allProperties: any[], 
+    allProperties: N8nProperty[],
     query: string,
     maxResults: number = 20
   ): SimplifiedProperty[] {
     const lowerQuery = query.toLowerCase();
-    const matches: Array<{ property: any; score: number; path: string }> = [];
+    const matches: Array<{ property: N8nProperty; score: number; path: string }> = [];
     
     this.searchPropertiesRecursive(allProperties, lowerQuery, matches);
     
@@ -504,9 +507,9 @@ export class PropertyFilter {
    * Recursively search properties including nested ones
    */
   private static searchPropertiesRecursive(
-    properties: any[],
+    properties: N8nProperty[],
     query: string,
-    matches: Array<{ property: any; score: number; path: string }>,
+    matches: Array<{ property: N8nProperty; score: number; path: string }>,
     path: string = ''
   ): void {
     for (const prop of properties) {
@@ -538,14 +541,14 @@ export class PropertyFilter {
       
       // Search nested properties
       if (prop.type === 'collection' && prop.options) {
-        this.searchPropertiesRecursive(prop.options, query, matches, currentPath);
+        this.searchPropertiesRecursive(prop.options as N8nProperty[], query, matches, currentPath);
       } else if (prop.type === 'fixedCollection' && prop.options) {
-        for (const option of prop.options) {
+        for (const option of prop.options as Array<{ name: string; values?: N8nProperty[] }>) {
           if (option.values) {
             this.searchPropertiesRecursive(
-              option.values, 
-              query, 
-              matches, 
+              option.values,
+              query,
+              matches,
               `${currentPath}.${option.name}`
             );
           }

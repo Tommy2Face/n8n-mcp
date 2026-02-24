@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import * as fsSync from 'fs';
 import path from 'path';
 import { logger } from '../utils/logger';
+import type { SqlBindValue } from '../types/n8n';
 
 /**
  * Unified database interface that abstracts better-sqlite3 and sql.js
@@ -10,21 +11,24 @@ export interface DatabaseAdapter {
   prepare(sql: string): PreparedStatement;
   exec(sql: string): void;
   close(): void;
-  pragma(key: string, value?: any): any;
+  pragma(key: string, value?: string | number): unknown;
   readonly inTransaction: boolean;
   transaction<T>(fn: () => T): T;
 }
 
+/** SQL bind parameter: positional values or a named parameter object */
+export type SqlBindParams = SqlBindValue | Record<string, SqlBindValue>;
+
 export interface PreparedStatement {
-  run(...params: any[]): RunResult;
-  get(...params: any[]): any;
-  all(...params: any[]): any[];
-  iterate(...params: any[]): IterableIterator<any>;
+  run(...params: SqlBindParams[]): RunResult;
+  get(...params: SqlBindParams[]): unknown;
+  all(...params: SqlBindParams[]): unknown[];
+  iterate(...params: SqlBindParams[]): IterableIterator<unknown>;
   pluck(toggle?: boolean): this;
   expand(toggle?: boolean): this;
   raw(toggle?: boolean): this;
   columns(): ColumnDefinition[];
-  bind(...params: any[]): this;
+  bind(...params: SqlBindParams[]): this;
 }
 
 export interface RunResult {
@@ -163,7 +167,7 @@ class BetterSQLiteAdapter implements DatabaseAdapter {
     this.db.close();
   }
   
-  pragma(key: string, value?: any): any {
+  pragma(key: string, value?: string | number): unknown {
     return this.db.pragma(key, value);
   }
   
@@ -206,7 +210,7 @@ class SQLJSAdapter implements DatabaseAdapter {
     this.db.close();
   }
   
-  pragma(key: string, value?: any): any {
+  pragma(key: string, value?: string | number): unknown {
     // sql.js doesn't support pragma in the same way
     // We'll handle specific pragmas as needed
     if (key === 'journal_mode' && value === 'WAL') {
@@ -262,20 +266,20 @@ class SQLJSAdapter implements DatabaseAdapter {
  */
 class BetterSQLiteStatement implements PreparedStatement {
   constructor(private stmt: any) {}
-  
-  run(...params: any[]): RunResult {
+
+  run(...params: SqlBindParams[]): RunResult {
     return this.stmt.run(...params);
   }
-  
-  get(...params: any[]): any {
+
+  get(...params: SqlBindParams[]): unknown {
     return this.stmt.get(...params);
   }
-  
-  all(...params: any[]): any[] {
+
+  all(...params: SqlBindParams[]): unknown[] {
     return this.stmt.all(...params);
   }
-  
-  iterate(...params: any[]): IterableIterator<any> {
+
+  iterate(...params: SqlBindParams[]): IterableIterator<unknown> {
     return this.stmt.iterate(...params);
   }
   
@@ -298,7 +302,7 @@ class BetterSQLiteStatement implements PreparedStatement {
     return this.stmt.columns();
   }
   
-  bind(...params: any[]): this {
+  bind(...params: SqlBindParams[]): this {
     this.stmt.bind(...params);
     return this;
   }
@@ -308,11 +312,12 @@ class BetterSQLiteStatement implements PreparedStatement {
  * Statement wrapper for sql.js
  */
 class SQLJSStatement implements PreparedStatement {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- sql.js accepts mixed param formats
   private boundParams: any = null;
-  
+
   constructor(private stmt: any, private onModify: () => void) {}
-  
-  run(...params: any[]): RunResult {
+
+  run(...params: SqlBindParams[]): RunResult {
     if (params.length > 0) {
       this.bindParams(params);
       this.stmt.bind(this.boundParams);
@@ -328,7 +333,7 @@ class SQLJSStatement implements PreparedStatement {
     };
   }
   
-  get(...params: any[]): any {
+  get(...params: SqlBindParams[]): unknown {
     if (params.length > 0) {
       this.bindParams(params);
     }
@@ -345,14 +350,14 @@ class SQLJSStatement implements PreparedStatement {
     return undefined;
   }
   
-  all(...params: any[]): any[] {
+  all(...params: SqlBindParams[]): unknown[] {
     if (params.length > 0) {
       this.bindParams(params);
     }
     
     this.stmt.bind(this.boundParams);
     
-    const results: any[] = [];
+    const results: unknown[] = [];
     while (this.stmt.step()) {
       results.push(this.stmt.getAsObject());
     }
@@ -361,7 +366,7 @@ class SQLJSStatement implements PreparedStatement {
     return results;
   }
   
-  iterate(...params: any[]): IterableIterator<any> {
+  iterate(...params: SqlBindParams[]): IterableIterator<unknown> {
     // sql.js doesn't support generators well, return array iterator
     return this.all(...params)[Symbol.iterator]();
   }
@@ -386,12 +391,12 @@ class SQLJSStatement implements PreparedStatement {
     return [];
   }
   
-  bind(...params: any[]): this {
+  bind(...params: SqlBindParams[]): this {
     this.bindParams(params);
     return this;
   }
-  
-  private bindParams(params: any[]): void {
+
+  private bindParams(params: SqlBindParams[]): void {
     if (params.length === 1 && typeof params[0] === 'object' && !Array.isArray(params[0])) {
       // Named parameters passed as object
       this.boundParams = params[0];

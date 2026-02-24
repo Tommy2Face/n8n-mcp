@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { logger } from '../utils/logger';
 
 export class DocsMapper {
   private docsPath = path.join(process.cwd(), 'n8n-docs');
@@ -24,11 +25,11 @@ export class DocsMapper {
     // Extract node name
     const nodeName = fixedType.split('.').pop()?.toLowerCase();
     if (!nodeName) {
-      console.log(`⚠️  Could not extract node name from: ${nodeType}`);
+      logger.warn(`Could not extract node name from: ${nodeType}`);
       return null;
     }
     
-    console.log(`📄 Looking for docs for: ${nodeType} -> ${nodeName}`);
+    logger.debug(`Looking for docs for: ${nodeType} -> ${nodeName}`);
     
     // Try different documentation paths - both files and directories
     const possiblePaths = [
@@ -51,7 +52,7 @@ export class DocsMapper {
       try {
         const fullPath = path.join(this.docsPath, relativePath);
         const content = await fs.readFile(fullPath, 'utf-8');
-        console.log(`  ✓ Found docs at: ${relativePath}`);
+        logger.debug(`  Found docs at: ${relativePath}`);
         return content;
       } catch (error) {
         // File doesn't exist, try next
@@ -59,7 +60,7 @@ export class DocsMapper {
       }
     }
     
-    console.log(`  ✗ No docs found for ${nodeName}`);
+    logger.debug(`  No docs found for ${nodeName}`);
     return null;
   }
 }

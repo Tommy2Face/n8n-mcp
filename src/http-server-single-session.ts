@@ -9,6 +9,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { N8NDocumentationMCPServer } from './mcp/server-update';
 import { ConsoleManager } from './utils/console-manager';
 import { logger } from './utils/logger';
+import { APP_VERSION, DEFAULT_PORT, DEFAULT_HOST, HSTS_MAX_AGE, CORS_MAX_AGE, SESSION_TIMEOUT_MS } from './config/constants';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -24,7 +25,7 @@ export class SingleSessionHTTPServer {
   private session: Session | null = null;
   private consoleManager = new ConsoleManager();
   private expressServer: any;
-  private sessionTimeout = 30 * 60 * 1000; // 30 minutes
+  private sessionTimeout = SESSION_TIMEOUT_MS;
   
   constructor() {
     // Validate environment on construction
@@ -162,17 +163,17 @@ export class SingleSessionHTTPServer {
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('X-Frame-Options', 'DENY');
       res.setHeader('X-XSS-Protection', '1; mode=block');
-      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+      res.setHeader('Strict-Transport-Security', `max-age=${HSTS_MAX_AGE}; includeSubDomains`);
       next();
     });
-    
+
     // CORS configuration
     app.use((req, res, next) => {
       const allowedOrigin = process.env.CORS_ORIGIN || '*';
       res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
       res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
-      res.setHeader('Access-Control-Max-Age', '86400');
+      res.setHeader('Access-Control-Max-Age', CORS_MAX_AGE);
       
       if (req.method === 'OPTIONS') {
         res.sendStatus(204);
@@ -196,7 +197,7 @@ export class SingleSessionHTTPServer {
       res.json({ 
         status: 'ok', 
         mode: 'single-session',
-        version: '2.3.2',
+        version: APP_VERSION,
         uptime: Math.floor(process.uptime()),
         sessionActive: !!this.session,
         sessionAge: this.session 
@@ -264,8 +265,8 @@ export class SingleSessionHTTPServer {
       }
     });
     
-    const port = parseInt(process.env.PORT || '3000');
-    const host = process.env.HOST || '0.0.0.0';
+    const port = parseInt(process.env.PORT || String(DEFAULT_PORT));
+    const host = process.env.HOST || DEFAULT_HOST;
     
     this.expressServer = app.listen(port, host, () => {
       logger.info(`n8n MCP Single-Session HTTP Server started`, { port, host });

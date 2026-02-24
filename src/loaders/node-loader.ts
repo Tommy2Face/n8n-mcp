@@ -1,4 +1,5 @@
 import path from 'path';
+import { logger } from '../utils/logger';
 
 export interface LoadedNode {
   packageName: string;
@@ -17,14 +18,14 @@ export class N8nNodeLoader {
     
     for (const pkg of this.CORE_PACKAGES) {
       try {
-        console.log(`\n📦 Loading package: ${pkg.name} from ${pkg.path}`);
+        logger.info(`📦 Loading package: ${pkg.name} from ${pkg.path}`);
         // Use the path property to locate the package
         const packageJson = require(`${pkg.path}/package.json`);
-        console.log(`  Found ${Object.keys(packageJson.n8n?.nodes || {}).length} nodes in package.json`);
+        logger.info(`  Found ${Object.keys(packageJson.n8n?.nodes || {}).length} nodes in package.json`);
         const nodes = await this.loadPackageNodes(pkg.name, pkg.path, packageJson);
         results.push(...nodes);
       } catch (error) {
-        console.error(`Failed to load ${pkg.name}:`, error);
+        logger.error(`Failed to load ${pkg.name}:`, error);
       }
     }
     
@@ -53,12 +54,12 @@ export class N8nNodeLoader {
           const NodeClass = nodeModule.default || nodeModule[nodeName] || Object.values(nodeModule)[0];
           if (NodeClass) {
             nodes.push({ packageName, nodeName, NodeClass });
-            console.log(`  ✓ Loaded ${nodeName} from ${packageName}`);
+            logger.info(`  ✓ Loaded ${nodeName} from ${packageName}`);
           } else {
-            console.warn(`  ⚠ No valid export found for ${nodeName} in ${packageName}`);
+            logger.warn(`  ⚠ No valid export found for ${nodeName} in ${packageName}`);
           }
         } catch (error) {
-          console.error(`  ✗ Failed to load node from ${packageName}/${nodePath}:`, (error as Error).message);
+          logger.error(`  ✗ Failed to load node from ${packageName}/${nodePath}:`, (error as Error).message);
         }
       }
     } else {
@@ -72,12 +73,12 @@ export class N8nNodeLoader {
           const NodeClass = nodeModule.default || nodeModule[nodeName] || Object.values(nodeModule)[0];
           if (NodeClass) {
             nodes.push({ packageName, nodeName, NodeClass });
-            console.log(`  ✓ Loaded ${nodeName} from ${packageName}`);
+            logger.info(`  ✓ Loaded ${nodeName} from ${packageName}`);
           } else {
-            console.warn(`  ⚠ No valid export found for ${nodeName} in ${packageName}`);
+            logger.warn(`  ⚠ No valid export found for ${nodeName} in ${packageName}`);
           }
         } catch (error) {
-          console.error(`  ✗ Failed to load node ${nodeName} from ${packageName}:`, (error as Error).message);
+          logger.error(`  ✗ Failed to load node ${nodeName} from ${packageName}:`, (error as Error).message);
         }
       }
     }
