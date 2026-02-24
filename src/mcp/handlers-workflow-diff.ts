@@ -53,24 +53,12 @@ export async function handleUpdatePartialWorkflow(args: unknown): Promise<McpToo
     }
     
     // Fetch current workflow
-    let workflow;
-    try {
-      workflow = await client.getWorkflow(input.id);
-    } catch (error) {
-      if (error instanceof N8nApiError) {
-        return {
-          success: false,
-          error: getUserFriendlyErrorMessage(error),
-          code: error.code
-        };
-      }
-      throw error;
-    }
-    
+    const workflow = await client.getWorkflow(input.id);
+
     // Apply diff operations
     const diffEngine = new WorkflowDiffEngine();
     const diffResult = await diffEngine.applyDiff(workflow, input as WorkflowDiffRequest);
-    
+
     if (!diffResult.success) {
       return {
         success: false,
@@ -81,7 +69,7 @@ export async function handleUpdatePartialWorkflow(args: unknown): Promise<McpToo
         }
       };
     }
-    
+
     // If validateOnly, return validation result
     if (input.validateOnly) {
       return {
@@ -93,32 +81,20 @@ export async function handleUpdatePartialWorkflow(args: unknown): Promise<McpToo
         }
       };
     }
-    
+
     // Update workflow via API
-    try {
-      const updatedWorkflow = await client.updateWorkflow(input.id, diffResult.workflow!);
-      
-      return {
-        success: true,
-        data: updatedWorkflow,
-        message: `Workflow "${updatedWorkflow.name}" updated successfully. Applied ${diffResult.operationsApplied} operations.`,
-        details: {
-          operationsApplied: diffResult.operationsApplied,
-          workflowId: updatedWorkflow.id,
-          workflowName: updatedWorkflow.name
-        }
-      };
-    } catch (error) {
-      if (error instanceof N8nApiError) {
-        return {
-          success: false,
-          error: getUserFriendlyErrorMessage(error),
-          code: error.code,
-          details: error.details as Record<string, unknown> | undefined
-        };
+    const updatedWorkflow = await client.updateWorkflow(input.id, diffResult.workflow!);
+
+    return {
+      success: true,
+      data: updatedWorkflow,
+      message: `Workflow "${updatedWorkflow.name}" updated successfully. Applied ${diffResult.operationsApplied} operations.`,
+      details: {
+        operationsApplied: diffResult.operationsApplied,
+        workflowId: updatedWorkflow.id,
+        workflowName: updatedWorkflow.name
       }
-      throw error;
-    }
+    };
   } catch (error) {
     if (error instanceof z.ZodError) {
       return {
@@ -127,7 +103,16 @@ export async function handleUpdatePartialWorkflow(args: unknown): Promise<McpToo
         details: { errors: error.errors }
       };
     }
-    
+
+    if (error instanceof N8nApiError) {
+      return {
+        success: false,
+        error: getUserFriendlyErrorMessage(error),
+        code: error.code,
+        details: error.details as Record<string, unknown> | undefined
+      };
+    }
+
     logger.error('Failed to update partial workflow', error);
     return {
       success: false,
