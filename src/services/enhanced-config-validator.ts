@@ -19,6 +19,7 @@ export interface EnhancedValidationResult extends ValidationResult {
     resource?: string;
     operation?: string;
     action?: string;
+    mode?: string;
   };
   examples?: Array<{
     description: string;
